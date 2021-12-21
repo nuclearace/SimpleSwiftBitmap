@@ -28,6 +28,7 @@ public struct BMPHeader {
     self.imageStart = imageStart
   }
 
+  @usableFromInline
   static func fromRawBytes(_ bytes: UnsafeRawPointer) -> BMPHeader {
     return BMPHeader(
       h1: bytes.load(fromByteOffset: 0, as: UInt8.self),
@@ -39,16 +40,13 @@ public struct BMPHeader {
     )
   }
 
-  func toRawBytes() -> UnsafeRawPointer {
-    let header = UnsafeMutableRawPointer.allocate(byteCount: 14, alignment: 1)
-
-    header.storeBytes(of: h1, toByteOffset: 0, as: UInt8.self)
-    header.storeBytes(of: h2, toByteOffset: 1, as: UInt8.self)
-    store32BitToRaw(val: bmpSize, pointer: header, startingOffset: 2)
-    store16BitToRaw(val: cust1, pointer: header, startingOffset: 6)
-    store16BitToRaw(val: cust2, pointer: header, startingOffset: 8)
-    store32BitToRaw(val: imageStart, pointer: header, startingOffset: 10)
-
-    return UnsafeRawPointer(header)
+  @usableFromInline
+  func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int = 0) {
+    bytes.storeBytes(of: h1, toByteOffset: offset, as: UInt8.self)
+    bytes.storeBytes(of: h2, toByteOffset: offset &+ 1, as: UInt8.self)
+    store32BitToRaw(val: bmpSize, pointer: bytes, startingOffset: offset &+ 2)
+    store16BitToRaw(val: cust1, pointer: bytes, startingOffset: offset &+ 6)
+    store16BitToRaw(val: cust2, pointer: bytes, startingOffset: offset &+ 8)
+    store32BitToRaw(val: imageStart, pointer: bytes, startingOffset: offset &+ 10)
   }
 }

@@ -5,21 +5,17 @@
 import Foundation
 
 public enum BitmapError: Error {
+  case notEnoughMemory
   case unsupportedBitmap
   case unsupportedDib
 }
 
-public struct SimpleSwiftBitmap<PixelType: Pixel, DIBType: DIBHeader> {
-  public private(set) var header: BMPHeader?
-  public private(set) var dibHeader: DIBType?
-  public private(set) var width: Int
-  public private(set) var height: Int
-  public private(set) var pixels: [[PixelType]]
-
-  @inlinable
-  public var rowSize: Int {
-    Int(floor(Double(Int(PixelType.bitsPerPixel) * width + 31) / 32.0) * 4)
-  }
+public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where PixelType == DIBType.PixelType {
+  public var header: BMPHeader?
+  public var dibHeader: DIBType?
+  public var width: Int
+  public var height: Int
+  public var pixels: [[PixelType]]
 
   public init(
     header: BMPHeader? = nil,
@@ -34,12 +30,12 @@ public struct SimpleSwiftBitmap<PixelType: Pixel, DIBType: DIBHeader> {
     self.height = height
     self.pixels =
       pixels ??
-      [[PixelType]](repeating: [PixelType](repeating: PixelType(0, 0, 0), count: width), count: height)
+      [[PixelType]](repeating: [PixelType](repeating: PixelType(0, 0, 0, 0), count: width), count: height)
   }
 
   @inlinable
-  public static func fromFile(_ str: String) async throws -> SimpleSwiftBitmap {
-    let (bytes, _) = try await URLSession.shared.bytes(for: URLRequest(url: URL(fileURLWithPath: str)))
+  public static func fromURL(_ url: URL) async throws -> SimpleSwiftBitmap {
+    let (bytes, _) = try await URLSession.shared.bytes(for: URLRequest(url: url))
     let (header, dibHeader, imageData) = try await extractRawBytes(bytes: bytes)
     let pixels = extractImageData(fromData: imageData, dibHeader: dibHeader)
 
@@ -104,17 +100,48 @@ public struct SimpleSwiftBitmap<PixelType: Pixel, DIBType: DIBHeader> {
     return pixels.reversed()
   }
 
-  @usableFromInline
-  func getBMPHeader() -> BMPHeader {
-    let imageStart = UInt32(14 + DIBType.rawHeaderSize)
-
-    return BMPHeader(bmpSize: UInt32(rowSize * height) + imageStart, imageStart: imageStart)
-  }
-
   @inlinable
-  public func save() async throws {
-    let header = getBMPHeader()
+  public mutating func save(to: URL) async throws {
+    let dib = DIBType.fromBitmap(self)
+    let headersSize = DIBType.BitmapSizeType(14 + DIBType.rawHeaderSize)
+    let fileSize = dib.bitmapSize + headersSize
+    let bmpHeader = BMPHeader(bmpSize: UInt32(fileSize), imageStart: UInt32(headersSize))
+    let bytesPerPixel = Int(PixelType.bitsPerPixel) / 8
+    let (rowSize, _) = dib.getRowSizeAndPadding()
 
-    print(header)
+    guard let fileBytes = calloc(Int(fileSize), 1) else {
+      throw BitmapError.notEnoughMemory
+    }
+
+    header = bmpHeader
+    dibHeader = dib
+
+    defer {
+      free(fileBytes)
+    }
+
+    bmpHeader.storeBytesAt(fileBytes)
+    dib.storeBytesAt(fileBytes, offset: 14)
+
+    var rowOffset = 0
+
+    for row in pixels.lazy.reversed() {
+      for (xOffset, pixel) in row.lazy.enumerated() {
+        pixel.storeBytesAt(fileBytes, offset: Int(headersSize) &+ rowOffset &+ xOffset &* bytesPerPixel)
+      }
+
+      rowOffset += rowSize
+    }
+
+    try await withUnsafeThrowingContinuation {cont  in
+      Task.detached {
+        do {
+          try Data(bytesNoCopy: fileBytes, count: Int(fileSize), deallocator: .none).write(to: to)
+          cont.resume()
+        } catch {
+          cont.resume(throwing: error)
+        }
+      }
+    } as Void
   }
 }

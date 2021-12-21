@@ -5,6 +5,8 @@
 import Foundation
 
 public struct BitmapInfoDIBHeader: DIBHeader {
+  public typealias PixelType = Pixel24
+
   public var headerSize: UInt32
   public var bitmapWidth: UInt32
   public var bitmapHeight: UInt32
@@ -45,6 +47,17 @@ public struct BitmapInfoDIBHeader: DIBHeader {
     self.importantColors = importantColors
   }
 
+  @inlinable
+  public static func fromBitmap<T: Bitmap>(_ bitmap: T) -> BitmapInfoDIBHeader where T.DIBType == BitmapInfoDIBHeader {
+    return BitmapInfoDIBHeader(
+      headerSize: 40,
+      bitmapWidth: UInt32(bitmap.width),
+      bitmapHeight: UInt32(bitmap.height),
+      colorDepth: UInt16(PixelType.bitsPerPixel),
+      bitmapSize: rowSize(forWidth: bitmap.width) * UInt32(bitmap.height)
+    )
+  }
+
   public static func fromRawBytes(_ bytes: UnsafeRawPointer) -> BitmapInfoDIBHeader {
     return BitmapInfoDIBHeader(
       headerSize: load32BitFromRaw(pointer: bytes, startingOffset: 0),
@@ -61,21 +74,17 @@ public struct BitmapInfoDIBHeader: DIBHeader {
     )
   }
 
-  public func toRawBytes() -> UnsafeRawPointer {
-    let header = UnsafeMutableRawPointer.allocate(byteCount: 40, alignment: 1)
-
-    store32BitToRaw(val: headerSize, pointer: header, startingOffset: 0)
-    store32BitToRaw(val: bitmapWidth, pointer: header, startingOffset: 4)
-    store32BitToRaw(val: bitmapHeight, pointer: header, startingOffset: 8)
-    store16BitToRaw(val: colorPlane, pointer: header, startingOffset: 12)
-    store16BitToRaw(val: colorDepth, pointer: header, startingOffset: 14)
-    store32BitToRaw(val: compressionMethod, pointer: header, startingOffset: 16)
-    store32BitToRaw(val: bitmapSize, pointer: header, startingOffset: 20)
-    store32BitToRaw(val: horizontalResolution, pointer: header, startingOffset: 24)
-    store32BitToRaw(val: verticalResolution, pointer: header, startingOffset: 28)
-    store32BitToRaw(val: numColors, pointer: header, startingOffset: 32)
-    store32BitToRaw(val: importantColors, pointer: header, startingOffset: 36)
-
-    return UnsafeRawPointer(header)
+  public func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int) {
+    store32BitToRaw(val: headerSize, pointer: bytes, startingOffset: offset)
+    store32BitToRaw(val: bitmapWidth, pointer: bytes, startingOffset: offset &+ 4)
+    store32BitToRaw(val: bitmapHeight, pointer: bytes, startingOffset: offset &+ 8)
+    store16BitToRaw(val: colorPlane, pointer: bytes, startingOffset: offset &+ 12)
+    store16BitToRaw(val: colorDepth, pointer: bytes, startingOffset: offset &+ 14)
+    store32BitToRaw(val: compressionMethod, pointer: bytes, startingOffset: offset &+ 16)
+    store32BitToRaw(val: bitmapSize, pointer: bytes, startingOffset: offset &+ 20)
+    store32BitToRaw(val: horizontalResolution, pointer: bytes, startingOffset: offset &+ 24)
+    store32BitToRaw(val: verticalResolution, pointer: bytes, startingOffset: offset &+ 28)
+    store32BitToRaw(val: numColors, pointer: bytes, startingOffset: offset &+ 32)
+    store32BitToRaw(val: importantColors, pointer: bytes, startingOffset: offset &+ 36)
   }
 }
