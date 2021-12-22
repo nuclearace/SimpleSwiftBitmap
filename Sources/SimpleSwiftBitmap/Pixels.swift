@@ -29,3 +29,30 @@ public struct Pixel24: Pixel {
     bytes.storeBytes(of: b, toByteOffset: offset, as: UInt8.self)
   }
 }
+
+public struct Pixel32: Pixel {
+  public var r: UInt8
+  public var g: UInt8
+  public var b: UInt8
+  public var a: UInt8?
+
+  public static let bitsPerPixel: UInt8 = 32
+
+  public init(_ r: UInt8, _ g: UInt8, _ b: UInt8, _ a: UInt8? = nil) {
+    self.r = r
+    self.g = g
+    self.b = b
+    self.a = a
+  }
+
+  public static func fromRawBytes(_ bytes: ArraySlice<UInt8>, offset: Int) -> Pixel32 {
+    return Pixel32(bytes[offset &+ 3], bytes[offset &+ 2], bytes[offset &+ 1], bytes[offset])
+  }
+
+  public func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int) {
+    bytes.storeBytes(of: r, toByteOffset: offset &+ 3, as: UInt8.self)
+    bytes.storeBytes(of: g, toByteOffset: offset &+ 2, as: UInt8.self)
+    bytes.storeBytes(of: b, toByteOffset: offset &+ 1, as: UInt8.self)
+    bytes.storeBytes(of: a ?? 0, toByteOffset: offset, as: UInt8.self)
+  }
+}

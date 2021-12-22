@@ -130,7 +130,7 @@ public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where Pix
         pixel.storeBytesAt(fileBytes, offset: Int(headersSize) &+ rowOffset &+ xOffset &* bytesPerPixel)
       }
 
-      rowOffset += rowSize
+      rowOffset &+= rowSize
     }
 
     try await withUnsafeThrowingContinuation {cont  in
