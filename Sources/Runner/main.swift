@@ -5,7 +5,7 @@
 import Foundation
 import SimpleSwiftBitmap
 
-typealias BMap = SimpleSwiftBitmap<Pixel24, BitmapInfoDIBHeaderV5>
+typealias BMap = SimpleSwiftBitmap<Pixel24, BitmapInfoDIBHeader>
 
 Task.detached {
   defer {
@@ -40,16 +40,16 @@ Task.detached {
 //      )
 //    }
 //  }
-
+//
 //  let s = Date().timeIntervalSince1970
 //  try! await randomBmp.save(to: randomGarbage)
 //  print("Saving took \(Date().timeIntervalSince1970 - s)")
-
+//
   do {
-    var shinobuBmp = try await BMap.fromURL(shinobu)
+    var shinobuBmp = try await AnySimpleSwiftBitmap.fromURL(shinobu)
 
     let s = Date().timeIntervalSince1970
-    try await shinobuBmp.save(to: shinobuOut)
+    try await shinobuBmp.save(to: shinobuOut, withDIBType: BitmapInfoDIBHeader.self)
     print("Saving took \(Date().timeIntervalSince1970 - s)")
   } catch {
     print(error)

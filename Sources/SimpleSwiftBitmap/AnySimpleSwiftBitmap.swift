@@ -1,66 +1,56 @@
 //
-// Created by Erik Little on 12/20/21.
+// Created by Erik Little on 12/22/21.
 //
 
 import Foundation
 
-public enum BitmapError: Error {
-  case corruptedFile
-  case notEnoughMemory
-  case unsupportedBitmap
-  case unsupportedDib
-}
+public struct AnySimpleSwiftBitmap: BitmapCore {
+  public var width: Int { dibHeader.bitmapWidth }
+  public var height: Int { dibHeader.bitmapWidth }
+  public var pixels: [[Pixel]]
 
-public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where PixelType == DIBType.PixelType {
-  public var header: BMPHeader?
-  public var dibHeader: DIBType?
-  public var width: Int
-  public var height: Int
-  public var pixels: [[PixelType]]
+  @usableFromInline
+  var header: BMPHeader
 
-  public init(
-    header: BMPHeader? = nil,
-    dibHeader: DIBType? = nil,
-    width: Int,
-    height: Int,
-    pixels: [[PixelType]]? = nil
-  ) {
+  @usableFromInline
+  var dibHeader: AnyDIBHeader
+
+
+  @usableFromInline
+  init(header: BMPHeader, dibHeader: AnyDIBHeader, pixels: [[Pixel]]) {
     self.header = header
     self.dibHeader = dibHeader
-    self.width = width
-    self.height = height
-    self.pixels =
-      pixels ??
-      [[PixelType]](repeating: [PixelType](repeating: PixelType(0, 0, 0, 0), count: width), count: height)
+    self.pixels = pixels
   }
 
   @inlinable
-  public static func fromURL(_ url: URL) async throws -> SimpleSwiftBitmap {
+  public static func fromURL(
+    _ url: URL,
+    supportedDibs: [AnyDIBHeader] = [
+      AnyDIBHeader(for: BitmapInfoDIBHeader.self),
+      AnyDIBHeader(for: BitmapInfoDIBHeaderV5.self)
+    ]
+  ) async throws -> AnySimpleSwiftBitmap {
     let (bytes, _) = try await URLSession.shared.bytes(for: URLRequest(url: url))
-    let (header, dibHeader, imageData) = try await extractRawBytes(bytes: bytes)
+    let (header, dibHeader, imageData) = try await extractRawBytes(bytes: bytes, supportedDibs: supportedDibs)
     let pixels = extractImageData(fromData: imageData, dibHeader: dibHeader)
 
-    return SimpleSwiftBitmap(
-      header: header,
-      dibHeader: dibHeader,
-      width: Int(dibHeader.bitmapWidth),
-      height: Int(dibHeader.bitmapHeight),
-      pixels: pixels
-    )
+    return AnySimpleSwiftBitmap(header: header, dibHeader: dibHeader, pixels: pixels)
   }
 
   @usableFromInline
-  static func extractRawBytes(bytes: URLSession.AsyncBytes) async throws -> (BMPHeader, DIBType, [UInt8]) {
-    let headersSize = 14 + Int(DIBType.rawHeaderSize)
+  static func extractRawBytes(
+    bytes: URLSession.AsyncBytes,
+    supportedDibs: [AnyDIBHeader]
+  ) async throws -> (BMPHeader, AnyDIBHeader, [UInt8]) {
     var header: BMPHeader!
-    var dibHeader: DIBType!
+    var dibHeader: AnyDIBHeader!
     var headerData = [UInt8]()
     var imageData = [UInt8]()
 
-    headerData.reserveCapacity(headersSize)
 
-    for try await byte in bytes {
-      guard dibHeader == nil else {
+    consume: for try await byte in bytes {
+      guard dibHeader == nil || dibHeader?.header == nil else {
         imageData.append(byte)
 
         continue
@@ -71,11 +61,14 @@ public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where Pix
       if headerData.count == 14 {
         header = headerData.withUnsafeBytes { BMPHeader.fromRawBytes($0.baseAddress!) }
 
-        guard header.imageStart - 14 == DIBType.rawHeaderSize else {
-          throw BitmapError.unsupportedBitmap
+        for dibType in supportedDibs where header.imageStart - 14 == dibType.rawHeaderSize {
+          dibHeader = dibType
+          continue consume
         }
-      } else if headerData.count == headersSize {
-        dibHeader = headerData.withUnsafeBytes { DIBType.fromRawBytes($0.baseAddress! + 14) }
+
+        throw BitmapError.unsupportedBitmap
+      } else if headerData.count - 14 == dibHeader?.rawHeaderSize ?? .max {
+        dibHeader = headerData.withUnsafeBytes { dibHeader.fromRawBytes($0.baseAddress! + 14) }
         imageData.reserveCapacity(Int(dibHeader.bitmapSize))
       }
     }
@@ -88,15 +81,15 @@ public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where Pix
   }
 
   @usableFromInline
-  static func extractImageData(fromData imageData: [UInt8], dibHeader: DIBType) -> [[PixelType]] {
+  static func extractImageData(fromData imageData: [UInt8], dibHeader: AnyDIBHeader) -> [[Pixel]] {
     let (rowSize, padding) = dibHeader.getRowSizeAndPadding()
-    var pixels = [[PixelType]]()
+    var pixels = [[Pixel]]()
 
-    pixels.reserveCapacity(Int(dibHeader.bitmapHeight))
+    pixels.reserveCapacity(dibHeader.bitmapHeight)
 
     for rowOffset in stride(from: 0, to: imageData.count, by: rowSize) {
       pixels.append(
-        PixelType.loadPixelRow(imageData[rowOffset..<rowOffset&+(rowSize&-padding)], width: Int(dibHeader.bitmapWidth))
+        dibHeader.pixelMaker(imageData[rowOffset..<rowOffset&+(rowSize&-padding)], Int(dibHeader.bitmapWidth))
       )
     }
 
@@ -104,7 +97,7 @@ public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where Pix
   }
 
   @inlinable
-  public mutating func save(to: URL) async throws {
+  public func save<DIBType: DIBHeader>(to: URL, withDIBType: DIBType.Type) async throws {
     let dib = DIBType.fromBitmap(self)
     let headersSize = DIBType.BitmapSizeType(14 + DIBType.rawHeaderSize)
     let fileSize = dib.bitmapSize + headersSize
@@ -118,13 +111,10 @@ public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where Pix
       free(fileBytes)
     }
 
-    header = bmpHeader
-    dibHeader = dib
-
     bmpHeader.storeBytes(fileBytes)
     dib.storeBytes(fileBytes, at: 14)
 
-    let bytesPerPixel = Int(PixelType.bitsPerPixel) / 8
+    let bytesPerPixel = Int(DIBType.PixelType.bitsPerPixel) / 8
     let (rowSize, _) = dib.getRowSizeAndPadding()
     var rowOffset = Int(headersSize)
 

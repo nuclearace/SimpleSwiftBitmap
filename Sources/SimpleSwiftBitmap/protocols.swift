@@ -4,14 +4,17 @@
 
 import Foundation
 
-public protocol Bitmap {
+public protocol BitmapCore {
+  var width: Int { get }
+  var height: Int { get }
+}
+
+public protocol Bitmap: BitmapCore {
   associatedtype PixelType
   associatedtype DIBType: DIBHeader where DIBType.PixelType == PixelType
 
   var header: BMPHeader? { get }
   var dibHeader: DIBType? { get }
-  var width: Int { get }
-  var height: Int { get }
   var pixels: [[PixelType]] { get }
 
   mutating func save(to: URL) async throws
@@ -19,21 +22,19 @@ public protocol Bitmap {
   static func fromURL(_ url: URL) async throws -> Self
 }
 
-public protocol Pixel: Hashable {
-  associatedtype BitType: UnsignedInteger
-
-  var r: BitType { get set }
-  var g: BitType { get set }
-  var b: BitType { get set }
-  var a: BitType? { get set }
+public protocol Pixel {
+  var r: UInt8 { get set }
+  var g: UInt8 { get set }
+  var b: UInt8 { get set }
+  var a: UInt8? { get set }
 
   static var bitsPerPixel: UInt8 { get }
 
-  init(_ r: BitType, _ g: BitType, _ b: BitType, _ a: BitType?)
+  init(_ r: UInt8, _ g: UInt8, _ b: UInt8, _ a: UInt8?)
 
   static func fromRawBytes(_ bytes: ArraySlice<UInt8>, offset: Int) -> Self
   static func loadPixelRow(_ row: ArraySlice<UInt8>, width: Int) -> [Self]
-  func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int)
+  func storeBytes(_ bytes: UnsafeMutableRawPointer, at offset: Int)
 }
 
 extension Pixel {
@@ -69,9 +70,9 @@ public protocol DIBHeader {
   static var rawHeaderSize: BitmapSizeType { get }
 
   func getRowSizeAndPadding() -> (rowSize: Int, padding: Int)
-  func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int)
+  func storeBytes(_ bytes: UnsafeMutableRawPointer, at offset: Int)
 
-  static func fromBitmap<T: Bitmap>(_ bitmap: T) -> Self where T.DIBType == Self
+  static func fromBitmap<T: BitmapCore>(_ bitmap: T) -> Self
   static func fromRawBytes(_ bytes: UnsafeRawPointer) -> Self
   static func rowSize(forWidth width: Int) -> BitmapSizeType
 }

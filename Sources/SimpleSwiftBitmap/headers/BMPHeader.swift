@@ -41,7 +41,7 @@ public struct BMPHeader {
   }
 
   @usableFromInline
-  func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int = 0) {
+  func storeBytes(_ bytes: UnsafeMutableRawPointer, at offset: Int = 0) {
     bytes.storeBytes(of: h1, toByteOffset: offset, as: UInt8.self)
     bytes.storeBytes(of: h2, toByteOffset: offset &+ 1, as: UInt8.self)
     store32BitToRaw(val: bmpSize, pointer: bytes, startingOffset: offset &+ 2)

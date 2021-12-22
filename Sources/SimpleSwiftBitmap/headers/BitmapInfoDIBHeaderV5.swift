@@ -95,6 +95,31 @@ public struct BitmapInfoDIBHeaderV5: DIBHeader {
 
   public static let rawHeaderSize: UInt32 = 124
 
+//  public init() {
+//    headerSize = 0
+//    bitmapWidth = 0
+//    colorDepth = 1
+//    compressionMethod = 0
+//    bitmapSize = 0
+//    horizontalResolution = 0
+//    verticalResolution = 0
+//    numColors = 0
+//    importantColors = 0
+//    redMask = 0
+//    greenMask = 0
+//    blueMask = 0
+//    alphaMask = 0
+//    colorSpaceType = .sRGB
+//    colorSpaceTriple = .default
+//    gammaRed = 0
+//    gammaGreen = 0
+//    gammaBlue = 0
+//    gamutMapping = .images
+//    profileData = 0
+//    profileSize = 0
+//    reserved = 0
+//  }
+
   public init(
     headerSize: UInt32,
     bitmapWidth: UInt32,
@@ -148,9 +173,7 @@ public struct BitmapInfoDIBHeaderV5: DIBHeader {
   }
 
   @inlinable
-  public static func fromBitmap<T: Bitmap>(
-    _ bitmap: T
-  ) -> BitmapInfoDIBHeaderV5 where T.DIBType == BitmapInfoDIBHeaderV5 {
+  public static func fromBitmap<T: BitmapCore>(_ bitmap: T) -> BitmapInfoDIBHeaderV5 {
     return BitmapInfoDIBHeaderV5(
       headerSize: 124,
       bitmapWidth: UInt32(bitmap.width),
@@ -189,7 +212,7 @@ public struct BitmapInfoDIBHeaderV5: DIBHeader {
     )
   }
 
-  public func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int) {
+  public func storeBytes(_ bytes: UnsafeMutableRawPointer, at offset: Int) {
     store32BitToRaw(val: headerSize, pointer: bytes, startingOffset: offset)
     store32BitToRaw(val: bitmapWidth, pointer: bytes, startingOffset: offset &+ 4)
     store32BitToRaw(val: bitmapHeight, pointer: bytes, startingOffset: offset &+ 8)

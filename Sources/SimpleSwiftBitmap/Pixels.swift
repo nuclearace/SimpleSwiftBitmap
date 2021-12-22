@@ -23,7 +23,7 @@ public struct Pixel24: Pixel {
     return Pixel24(bytes[offset &+ 2], bytes[offset &+ 1], bytes[offset])
   }
 
-  public func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int) {
+  public func storeBytes(_ bytes: UnsafeMutableRawPointer, at offset: Int) {
     bytes.storeBytes(of: r, toByteOffset: offset &+ 2, as: UInt8.self)
     bytes.storeBytes(of: g, toByteOffset: offset &+ 1, as: UInt8.self)
     bytes.storeBytes(of: b, toByteOffset: offset, as: UInt8.self)
@@ -49,7 +49,7 @@ public struct Pixel32: Pixel {
     return Pixel32(bytes[offset &+ 3], bytes[offset &+ 2], bytes[offset &+ 1], bytes[offset])
   }
 
-  public func storeBytesAt(_ bytes: UnsafeMutableRawPointer, offset: Int) {
+  public func storeBytes(_ bytes: UnsafeMutableRawPointer, at offset: Int) {
     bytes.storeBytes(of: r, toByteOffset: offset &+ 3, as: UInt8.self)
     bytes.storeBytes(of: g, toByteOffset: offset &+ 2, as: UInt8.self)
     bytes.storeBytes(of: b, toByteOffset: offset &+ 1, as: UInt8.self)
