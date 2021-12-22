@@ -106,28 +106,28 @@ public struct SimpleSwiftBitmap<PixelType, DIBType: DIBHeader>: Bitmap where Pix
     let headersSize = DIBType.BitmapSizeType(14 + DIBType.rawHeaderSize)
     let fileSize = dib.bitmapSize + headersSize
     let bmpHeader = BMPHeader(bmpSize: UInt32(fileSize), imageStart: UInt32(headersSize))
-    let bytesPerPixel = Int(PixelType.bitsPerPixel) / 8
-    let (rowSize, _) = dib.getRowSizeAndPadding()
 
     guard let fileBytes = calloc(Int(fileSize), 1) else {
       throw BitmapError.notEnoughMemory
     }
 
-    header = bmpHeader
-    dibHeader = dib
-
     defer {
       free(fileBytes)
     }
 
+    header = bmpHeader
+    dibHeader = dib
+
     bmpHeader.storeBytesAt(fileBytes)
     dib.storeBytesAt(fileBytes, offset: 14)
 
-    var rowOffset = 0
+    let bytesPerPixel = Int(PixelType.bitsPerPixel) / 8
+    let (rowSize, _) = dib.getRowSizeAndPadding()
+    var rowOffset = Int(headersSize)
 
     for row in pixels.lazy.reversed() {
       for (xOffset, pixel) in row.lazy.enumerated() {
-        pixel.storeBytesAt(fileBytes, offset: Int(headersSize) &+ rowOffset &+ xOffset &* bytesPerPixel)
+        pixel.storeBytesAt(fileBytes, offset: rowOffset &+ xOffset &* bytesPerPixel)
       }
 
       rowOffset &+= rowSize
