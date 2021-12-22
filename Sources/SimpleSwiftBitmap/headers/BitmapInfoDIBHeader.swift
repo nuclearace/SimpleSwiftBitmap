@@ -21,18 +21,6 @@ public struct BitmapInfoDIBHeader: DIBHeader {
 
   public static let rawHeaderSize: UInt32 = 40
 
-//  public init() {
-//    headerSize = 0
-//    bitmapWidth = 0
-//    colorDepth = 1
-//    compressionMethod = 0
-//    bitmapSize = 0
-//    horizontalResolution = 0
-//    verticalResolution = 0
-//    numColors = 0
-//    importantColors = 0
-//  }
-
   public init(
     headerSize: UInt32,
     bitmapWidth: UInt32,

@@ -95,31 +95,6 @@ public struct BitmapInfoDIBHeaderV5: DIBHeader {
 
   public static let rawHeaderSize: UInt32 = 124
 
-//  public init() {
-//    headerSize = 0
-//    bitmapWidth = 0
-//    colorDepth = 1
-//    compressionMethod = 0
-//    bitmapSize = 0
-//    horizontalResolution = 0
-//    verticalResolution = 0
-//    numColors = 0
-//    importantColors = 0
-//    redMask = 0
-//    greenMask = 0
-//    blueMask = 0
-//    alphaMask = 0
-//    colorSpaceType = .sRGB
-//    colorSpaceTriple = .default
-//    gammaRed = 0
-//    gammaGreen = 0
-//    gammaBlue = 0
-//    gamutMapping = .images
-//    profileData = 0
-//    profileSize = 0
-//    reserved = 0
-//  }
-
   public init(
     headerSize: UInt32,
     bitmapWidth: UInt32,
